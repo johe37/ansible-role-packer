@@ -1,0 +1,54 @@
+---
+packer_proxmox_api_url: ~
+packer_proxmox_api_user: ~
+packer_proxmox_api_password: ~
+packer_proxmox_node_name: ~
+packer_proxmox_iso_storage_pool: ~
+packer_vm_storage_pool: ~
+packer_build_name: ubuntu-22-10
+packer_template_name: "{{ packer_build_name }}-template-v1"
+packer_proxmox_iso_file: local:iso/ubuntu-22.10-live-server-amd64.iso
+packer_vm_disk_size: 20G
+packer_vm_disk_format: qcow2
+packer_vm_storage_pool_type: lvm
+packer_vm_disk_type: virtio
+packer_vm_cores: 1
+packer_vm_memory: 2048
+packer_vm_network_model: virtio
+packer_vm_network_bridge: vmbr0
+packer_vm_network_firewall: 'false'
+packer_default_user: packer
+packer_default_ssh_key: "{{ lookup('env', 'HOME') }}/.ssh/home" 
+packer_user_data: |
+  #cloud-config
+  autoinstall:
+    version: 1
+    locale: en_US
+    keyboard:
+      layout: se
+    ssh:
+      install-server: true
+      allow-pw: true
+      ssh_pwauth: true
+      disable_root: true
+      allow_public_ssh_keys: true
+    packages:
+      - qemu-guest-agent
+      - sudo
+    storage:
+      layout:
+        name: direct
+      swap:
+        size: 0
+    user-data:
+      package_upgrade: false
+      timezone: Europe/Stockholm
+      users:
+        - name: {{ packer_default_user }}
+          ssh_authorized_keys:
+            - {{ lookup('file', packer_default_ssh_key + '.pub') }}
+          groups: sudo
+          shell: /bin/bash
+          sudo: ALL=(ALL) NOPASSWD:ALL
+          lock-passwd: false
+...

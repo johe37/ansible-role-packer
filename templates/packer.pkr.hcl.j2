@@ -1,0 +1,155 @@
+# Packer Template to create a {{ packer_build_name }} template on Proxmox
+# ---
+
+packer {
+    required_plugins {
+        qemu = {
+            version = ">= 1.0.3"
+            source = "github.com/hashicorp/qemu"
+        }
+        ansible = {
+            version = ">= 1.0.0"
+            source = "github.com/hashicorp/ansible"
+        }
+    }
+}
+
+# Resource definition for the VM Template
+source "proxmox" "{{ packer_template_name }}" {
+ 
+    # Proxmox Connection Settings
+    proxmox_url = "{{ packer_proxmox_api_url }}"
+    username = "{{ packer_proxmox_api_user }}"
+    password = "{{ packer_proxmox_api_password }}"
+
+    # (Optional) Skip TLS Verification
+    insecure_skip_tls_verify = true
+    
+    # VM General Settings
+    node = "{{ packer_proxmox_node_name }}"
+    vm_name = "{{ packer_template_name }}"
+    template_description = "{{ packer_build_name }} template image"
+
+    # VM OS Settings
+    # (Option 1) Local ISO File
+    iso_file = "{{ packer_proxmox_iso_file }}"
+    # - or -
+    # (Option 2) Download ISO
+    #iso_url = "http://releases.ubuntu.com/22.10/ubuntu-22.10-live-server-amd64.iso"
+    #iso_checksum = "874452797430a94ca240c95d8503035aa145bd03ef7d84f9b23b78f3c5099aed"
+
+    iso_storage_pool = "{{ packer_proxmox_iso_storage_pool }}"
+    unmount_iso = true
+
+    # VM System Settings
+    qemu_agent = true
+
+    # VM Hard Disk Settings
+    scsi_controller = "virtio-scsi-pci"
+
+    disks {
+        disk_size = "{{ packer_vm_disk_size }}"
+        format = "{{ packer_vm_disk_format }}"
+        storage_pool = "{{ packer_vm_storage_pool }}"
+        storage_pool_type = "{{ packer_vm_storage_pool_type }}"
+        type = "{{ packer_vm_disk_type }}"
+    }
+
+    # VM CPU Settings
+    cores = "{{ packer_vm_cores }}"
+    
+    # VM Memory Settings
+    memory = "{{ packer_vm_memory }}" 
+
+    # VM Network Settings
+    network_adapters {
+        model = "{{ packer_vm_network_model }}"
+        bridge = "{{ packer_vm_network_bridge }}"
+        firewall = "{{ packer_vm_network_firewall}}"
+    } 
+
+    # VM Cloud-Init Settings
+    cloud_init = true
+    cloud_init_storage_pool = "local"
+
+    # PACKER Boot Commands
+    boot_command = [
+        "<esc><wait>",
+        "e<wait>",
+        "<down><down><down><end>",
+        "<bs><bs><bs><bs><wait>",
+        "autoinstall ds=nocloud-net\\;s=http://{{ '{{' }} .HTTPIP {{ '}}' }}:{{ '{{' }}.HTTPPort {{ '}}' }}/ ---<wait>",
+        "<f10><wait>"
+    ]
+    boot = "c"
+    boot_wait = "5s"
+
+    # PACKER Autoinstall Settings
+    http_directory = "http" 
+    # (Optional) Bind IP Address and Port
+    # http_bind_address = "0.0.0.0"
+    # http_port_min = 8802
+    # http_port_max = 8802
+
+    ssh_username = "{{ packer_default_user }}"
+    # (Option 1) Add your Password here
+    #ssh_password = "{{ packer_default_password }}"
+    # - or -
+    # (Option 2) Add your Private SSH KEY file here
+    ssh_private_key_file = "{{ packer_default_ssh_key }}"
+    # Raise the timeout, when installation takes longer
+    ssh_timeout = "20m"
+}
+
+# Build Definition to create the VM Template
+build {
+
+    name = "{{ packer_template_name }}"
+    sources = ["source.proxmox.{{ packer_template_name }}"]
+
+    # Provisioning the VM Template for Cloud-Init Integration in Proxmox
+    provisioner "shell" {
+        inline = [
+            "while [ ! -f /var/lib/cloud/instance/boot-finished ]; do echo 'Waiting for cloud-init...'; sleep 1; done",
+            "sudo rm /etc/ssh/ssh_host_*",
+            "sudo truncate -s 0 /etc/machine-id",
+            "sudo apt -y autoremove --purge",
+            "sudo apt -y clean",
+            "sudo apt -y autoclean",
+            "sudo cloud-init clean",
+            "sudo rm -f /etc/cloud/cloud.cfg.d/subiquity-disable-cloudinit-networking.cfg",
+            "sudo sync"
+        ]
+    }
+
+    # Provisioning the VM Template for Cloud-Init Integration in Proxmox
+    provisioner "file" {
+        source = "files/99-pve.cfg"
+        destination = "/tmp/99-pve.cfg"
+    }
+
+    # Provisioning the VM Template for Cloud-Init Integration in Proxmox
+    provisioner "shell" {
+        inline = [
+            "sudo cp /tmp/99-pve.cfg /etc/cloud/cloud.cfg.d/99-pve.cfg"
+        ]
+    }
+
+    # Provisioning the VM Template with Docker Installation
+    provisioner "shell" {
+        inline = [
+            "sudo apt install -y ca-certificates curl gnupg lsb-release",
+            "curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg",
+            "echo \"deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable\" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null",
+            "sudo apt -y update",
+            "sudo apt install -y docker-ce docker-ce-cli containerd.io"
+        ]
+    }
+    
+    # Clean up default user {{ packer_default_user }}
+    provisioner "shell" {
+        inline = [
+            "sudo su root -c \"userdel -rf {{ packer_default_user }}; rm /etc/sudoers.d/90-cloud-init-users;\""
+        ]
+    }
+}
