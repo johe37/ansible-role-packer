@@ -1,0 +1,34 @@
+- name: Provision image
+  hosts: default
+  tasks:
+    - name: Provision commands
+      become: yes
+      ansible.builtin.command:
+        cmd: "{{ item }}"
+      loop:
+        - rm /etc/ssh/ssh_host_* # Removing the SSH host keys will ensure that each new VM created from the template will have unique keys, which can be important for security reasons.
+        - truncate -s 0 /etc/machine-id # Truncating the machine ID file will ensure that each new VM has a unique machine ID, which can be important for certain applications that use the machine ID to generate unique identifiers.
+        - apt -y autoremove --purge # The other commands down below clean up unnecessary files and packages, which can help to reduce the size of the template and improve performance when provisioning new VMs.
+        - apt -y clean
+        - apt -y autoclean
+        - cloud-init clean
+        - rm -f /etc/cloud/cloud.cfg.d/subiquity-disable-cloudinit-networking.cfg
+        - sync
+
+    - name: Provision the cloud-init config
+      become: yes
+      ansible.builtin.copy:
+        dest: "/etc/cloud/cloud.cfg.d/99-pve.cfg"
+        content: "datasource_list: [ConfigDrive, NoCloud]"
+        mode: '0640'
+
+    - name: Install Docker
+      become: yes
+      ansible.builtin.shell:
+        cmd: "{{ item }}"
+      loop:
+        - apt install -y ca-certificates curl gnupg lsb-release
+        - curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+        - echo \"deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable\" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+        - apt -y update
+        - apt install -y docker-ce docker-ce-cli containerd.io
