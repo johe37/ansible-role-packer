@@ -15,7 +15,7 @@ packer {
 }
 
 # Resource definition for the Proxmox VM Template
-source "proxmox" "{{ packer_proxmox_template_name }}" {
+source "proxmox" "proxmox" {
  
     # Proxmox Connection Settings
     proxmox_url = "{{ packer_proxmox_api_url }}"
@@ -27,12 +27,12 @@ source "proxmox" "{{ packer_proxmox_template_name }}" {
     
     # VM General Settings
     node = "{{ packer_proxmox_node_name }}"
-    vm_name = "{{ packer_proxmox_template_name }}"
-    template_description = "{{ packer_proxmox_build_name }} template image"
+    vm_name = "{{ packer_template_name }}-template"
+    template_description = "{{ packer_template_name }} template image"
 
     # VM OS Settings
     # (Option 1) Local ISO File
-    iso_file = "{{ packer_proxmox_iso_file }}"
+    iso_file = "local:iso/{{ packer_iso_file }}"
     # - or -
     # (Option 2) Download ISO
     #iso_url = "http://releases.ubuntu.com/22.10/ubuntu-22.10-live-server-amd64.iso"
@@ -48,8 +48,8 @@ source "proxmox" "{{ packer_proxmox_template_name }}" {
         disk_size = "20G"
         format = "qcow2"
         storage_pool = "{{ packer_proxmox_vm_storage_pool }}"
-        storage_pool_type = "{{ packer_proxmox_vm_storage_pool_type }}"
-        type = "{{ packer_proxmox_vm_storage_pool_type }}"
+        storage_pool_type = "lvm"
+        type = "virtio"
     }
     cores = "1"
     memory = "2048"
@@ -86,10 +86,10 @@ source "proxmox" "{{ packer_proxmox_template_name }}" {
 
     ssh_username = "{{ packer_default_user }}"
     # (Option 1) Add your Password here
-    #ssh_password = "{{ packer_default_user_password }}"
+    ssh_password = "{{ packer_default_user_password }}"
     # - or -
     # (Option 2) Add your Private SSH KEY file here
-    ssh_private_key_file = "{{ packer_default_ssh_key }}"
+    #ssh_private_key_file = ""
     # Raise the timeout, when installation takes longer
     ssh_timeout = "20m"
 }
@@ -97,23 +97,7 @@ source "proxmox" "{{ packer_proxmox_template_name }}" {
 # Build Definition to create the VM Template
 build {
 
-    name = "{{ packer_proxmox_template_name }}"
-    sources = ["source.proxmox.{{ packer_proxmox_template_name }}"]
-
-    # Provisioning the VM Template for Cloud-Init Integration in Proxmox
-    provisioner "shell" {
-        inline = [
-            "while [ ! -f /var/lib/cloud/instance/boot-finished ]; do echo 'Waiting for cloud-init...'; sleep 1; done",
-            "sudo rm /etc/ssh/ssh_host_*",
-            "sudo truncate -s 0 /etc/machine-id",
-            "sudo apt -y autoremove --purge",
-            "sudo apt -y clean",
-            "sudo apt -y autoclean",
-            "sudo cloud-init clean",
-            "sudo rm -f /etc/cloud/cloud.cfg.d/subiquity-disable-cloudinit-networking.cfg",
-            "sudo sync"
-        ]
-    }
+    sources = ["source.proxmox.proxmox"]
 
     # Provisioning the VM Template for Cloud-Init Integration in Proxmox
     provisioner "file" {
@@ -128,21 +112,18 @@ build {
         ]
     }
 
-    # Provisioning the VM Template with Docker Installation
     provisioner "shell" {
         inline = [
-            "sudo apt install -y ca-certificates curl gnupg lsb-release",
-            "curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg",
-            "echo \"deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable\" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null",
-            "sudo apt -y update",
-            "sudo apt install -y docker-ce docker-ce-cli containerd.io"
+            {% for item in packer_provisioner_commands_ubuntu -%}
+            "{{ item }}",
+            {% endfor %}
+
         ]
     }
-    
-    # Clean up default user {{ packer_default_user }}
+
     provisioner "shell" {
         inline = [
-            "sudo su root -c \"userdel -rf {{ packer_default_user }}; rm /etc/sudoers.d/90-cloud-init-users;\""
+            "sudo su root -c \"userdel -rf packer; rm /etc/sudoers.d/90-cloud-init-users; /sbin/shutdown -hP now\""
         ]
     }
 }

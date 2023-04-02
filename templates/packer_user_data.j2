@@ -22,10 +22,9 @@ user-data:
     package_upgrade: false
     timezone: Europe/Stockholm
     users:
-    - name: {{ packer_default_user }}
-        ssh_authorized_keys:
-        - {{ lookup('file', packer_default_ssh_key + '.pub') }}
-        groups: sudo
-        shell: /bin/bash
-        sudo: ALL=(ALL) NOPASSWD:ALL
-        lock-passwd: false
+        - name: {{ packer_default_user }}
+    password: {{ packer_default_user_password_crypt }}
+    groups: sudo
+    shell: /bin/bash
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    lock-passwd: false

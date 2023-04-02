@@ -1,16 +1,16 @@
 ---
 packer_working_dir: "{{ lookup('env', 'PWD') }}/tmp/packer"
-packer_iso_url: https://releases.ubuntu.com/22.04.2/ubuntu-22.04.2-live-server-amd64.iso
+packer_iso_url: https://releases.ubuntu.com/22.10/ubuntu-22.10-live-server-amd64.iso
 packer_iso_file: "{{ packer_iso_url | basename }}"
-packer_template_name: "{{ packer_iso | replace('.iso', '') }}"
+packer_template_name: "{{ packer_iso_file | replace('.iso', '') }}"
 packer_default_user: packer
 packer_default_user_password: changeme
-packer_default_ssh_key: "{{ lookup('env', 'HOME') }}/.ssh/home"
+packer_default_user_password_crypt: "{{ packer_default_user_password | password_hash('sha512') }}"
 packer_user_data_content: "{{ lookup('template', 'packer_user_data.j2') }}"
-packer_template_content: "{{ lookup('template', 'packer_proxmox.pkr.hcl.j2') }}"
+packer_template_content: ~
 packer_config_files:
   - path: "{{ packer_working_dir }}/packer.pkr.hcl"
-    content: "{{ packer_template_content }}"
+    content: "{{ packer_template_content | default('Set the packer_template_content variable to specify which template to use.') }}"
   - path: "{{ packer_working_dir }}/files/99-pve.cfg" # For proxmox
     content: "datasource_list: [ConfigDrive, NoCloud]"
   - path: "{{ packer_working_dir }}/http/meta-data"
@@ -27,12 +27,26 @@ packer_proxmox_node_name: ~
 packer_proxmox_build_name: ubuntu-22-10
 packer_proxmox_template_name: "{{ packer_proxmox_build_name }}-template-v1"
 packer_proxmox_iso_storage_pool: ~
-packer_proxmox_iso_file: local:iso/ubuntu-22.10-live-server-amd64.iso
 packer_proxmox_vm_storage_pool: ~
-packer_proxmox_vm_storage_pool_type: lvm
-packer_proxmox_vm_disk_type: virtio
 
 ################################### PACKER QEMU ####################################
 #
 
+################################### PACKER UBUNTU ####################################
+#
+packer_provisioner_commands_ubuntu:
+  - while [ ! -f /var/lib/cloud/instance/boot-finished ]; do echo 'Waiting for cloud-init...'; sleep 1; done
+  - sudo rm /etc/ssh/ssh_host_*
+  - sudo truncate -s 0 /etc/machine-id
+  - sudo apt-get -y autoremove --purge
+  - sudo apt-get -y clean
+  - sudo apt-get -y autoclean
+  - sudo cloud-init clean
+  - sudo rm -f /etc/cloud/cloud.cfg.d/subiquity-disable-cloudinit-networking.cfg
+  - sudo sync
+  - sudo apt-get install -y ca-certificates curl gnupg lsb-release
+  - curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+  - echo \"deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable\" | sudo tee /etc/apt-get/sources.list.d/docker.list > /dev/null
+  - sudo apt-get -y update
+  - sudo apt-get install -y docker-ce docker-ce-cli containerd.io
 ...

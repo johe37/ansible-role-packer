@@ -55,8 +55,8 @@ source "qemu" "qemu" {
 
   # SSH settings
   ssh_username = "{{ packer_default_user }}"
-  #ssh_password = "{{ packer_default_user_password }}"
-  ssh_private_key_file = "{{ packer_default_ssh_key }}"
+  ssh_password = "{{ packer_default_user_password }}"
+  #ssh_private_key_file = ""
   ssh_timeout = "20m"
 
   # Packer compacts the QCOW2 image using qemu-img convert. Set this option to true to disable compacting. Defaults to false.
@@ -74,29 +74,14 @@ source "qemu" "qemu" {
 }
 
 build {
-  sources = ["source.qemu.qemu"]
+    sources = ["source.qemu.qemu"]
 
-  provisioner "shell" {
-    inline = [
-        "while [ ! -f /var/lib/cloud/instance/boot-finished ]; do echo 'Waiting for cloud-init...'; sleep 1; done",
-        "sudo rm /etc/ssh/ssh_host_*",
-        "sudo truncate -s 0 /etc/machine-id",
-        "sudo apt-get -y autoremove --purge",
-        "sudo apt-get -y clean",
-        "sudo apt-get -y autoclean",
-        "sudo cloud-init clean",
-        "sudo rm -f /etc/cloud/cloud.cfg.d/subiquity-disable-cloudinit-networking.cfg",
-        "sudo sync"
-    ]
-  }
+    provisioner "shell" {
+        inline = [
+            {% for item in packer_provisioner_commands_ubuntu -%}
+            "{{ item }}",
+            {% endfor %}
 
-  provisioner "shell" {
-    inline = [
-      "sudo apt-get install -y ca-certificates curl gnupg lsb-release",
-      "curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg",
-      "echo \"deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable\" | sudo tee /etc/apt-get/sources.list.d/docker.list > /dev/null",
-      "sudo apt-get -y update",
-      "sudo apt-get install -y docker-ce docker-ce-cli containerd.io"
-    ]
-  }
+        ]
+    }
 }
