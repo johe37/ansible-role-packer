@@ -1,6 +1,7 @@
 ---
 packer_working_dir: "{{ lookup('env', 'PWD') }}/tmp/packer"
 packer_iso_url: https://releases.ubuntu.com/22.10/ubuntu-22.10-live-server-amd64.iso
+packer_iso_checksum: 874452797430a94ca240c95d8503035aa145bd03ef7d84f9b23b78f3c5099aed
 packer_iso_file: "{{ packer_iso_url | basename }}"
 packer_template_name: "{{ packer_iso_file | replace('.iso', '') }}"
 packer_default_user: packer
