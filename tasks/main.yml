@@ -1,86 +1,13 @@
 ---
-- name: Determine if Packer is installed
-  ansible.builtin.stat:
-    path: /usr/bin/packer
-  register: _packer
+- name: Include task prepare
+  ansible.builtin.include_tasks:
+    file: prepare.yml
 
-- name: Install Packer
-  when: not _packer.stat.exists
-  block:
-    - name: Add Hashicorp GPG key
-      become: yes
-      ansible.builtin.apt_key:
-        url: https://apt.releases.hashicorp.com/gpg
-        state: present
+- name: Include task install
+  ansible.builtin.include_tasks:
+    file: install.yml
 
-    - name: Add Hashicorp apt repository
-      become: yes
-      ansible.builtin.apt_repository:
-        repo: "deb [arch=amd64] https://apt.releases.hashicorp.com {{ ansible_lsb.codename }} main"
-        state: present
-
-    - name: Install Packer package
-      become: yes
-      ansible.builtin.package:
-        name: packer
-        state: present
-
-- name: Create Packer working directories
-  ansible.builtin.file:
-    path: "{{ lookup('env', 'PWD') }}/tmp/packer/{{ packer_build_name }}/{{ item }}"
-    state: directory
-    mode: '0775'
-  loop:
-    - files
-    - http
-
-- name: Create Packer Proxmox config file
-  ansible.builtin.copy:
-    dest: "{{ lookup('env', 'PWD') }}/tmp/packer/{{ packer_build_name }}/files/99-pve.cfg"
-    follow: true
-    content: "datasource_list: [ConfigDrive, NoCloud]"
-    mode: '0640'
-
-- name: Create Packer http files
-  ansible.builtin.copy:
-    dest: "{{ lookup('env', 'PWD') }}/tmp/packer/{{ packer_build_name }}/http/{{ item.name }}"
-    follow: true
-    content: "{{ item.content }}"
-    mode: '0640'
-  loop:
-    - name: meta-data
-      content: ""
-    - name: user-data
-      content: "{{ packer_user_data }}"
-  loop_control:
-    label: "{{ item.name }}"
-
-- name: Copy provision-image.yml file to working directory
-  ansible.builtin.copy:
-    src: "{{ lookup('env', 'PWD') }}/ansible/roles/packer/files/playbooks/provision-image.yml"
-    dest: "{{ lookup('env', 'PWD') }}/tmp/packer/{{ packer_build_name }}/files/provision-image.yml"
-
-- name: Create Packer {{ packer_build_name }}.pkr.hcl file
-  ansible.builtin.template:
-    src: packer.pkr.hcl.j2
-    dest: "{{ lookup('env', 'PWD') }}/tmp/packer/{{ packer_build_name }}/{{ packer_build_name }}.pkr.hcl"
-    mode: '0664'
-
-- name: Init packer
-  ansible.builtin.command:
-    cmd: packer init .
-  args:
-    chdir: "{{ lookup('env', 'PWD') }}/tmp/packer/{{ packer_build_name }}"
-
-- name: Run packer build
-  ansible.builtin.shell:
-    cmd: packer build {{ packer_build_name }}.pkr.hcl
-  environment:
-    PACKER_LOG: "1"
-    PACKER_LOG_PATH: "{{ lookup('env', 'PWD') }}/tmp/packer/{{ packer_build_name }}/packer.log"
-  args:
-    chdir: "{{ lookup('env', 'PWD') }}/tmp/packer/{{ packer_build_name }}"
-  async: 3600
-  poll: 60
-  register: packer_build_results
+- name: Include task build
+  ansible.builtin.include_tasks:
+    file: build.yml
 ...

@@ -1,4 +1,4 @@
-# Packer Template to create a {{ packer_build_name }} template on Proxmox
+# Packer file
 # ---
 
 packer {
@@ -14,8 +14,8 @@ packer {
     }
 }
 
-# Resource definition for the VM Template
-source "proxmox" "{{ packer_template_name }}" {
+# Resource definition for the Proxmox VM Template
+source "proxmox" "{{ packer_proxmox_template_name }}" {
  
     # Proxmox Connection Settings
     proxmox_url = "{{ packer_proxmox_api_url }}"
@@ -27,8 +27,8 @@ source "proxmox" "{{ packer_template_name }}" {
     
     # VM General Settings
     node = "{{ packer_proxmox_node_name }}"
-    vm_name = "{{ packer_template_name }}"
-    template_description = "{{ packer_build_name }} template image"
+    vm_name = "{{ packer_proxmox_template_name }}"
+    template_description = "{{ packer_proxmox_build_name }} template image"
 
     # VM OS Settings
     # (Option 1) Local ISO File
@@ -41,31 +41,24 @@ source "proxmox" "{{ packer_template_name }}" {
     iso_storage_pool = "{{ packer_proxmox_iso_storage_pool }}"
     unmount_iso = true
 
-    # VM System Settings
+    # VM Settings
     qemu_agent = true
-
-    # VM Hard Disk Settings
     scsi_controller = "virtio-scsi-pci"
-
     disks {
-        disk_size = "{{ packer_vm_disk_size }}"
-        format = "{{ packer_vm_disk_format }}"
-        storage_pool = "{{ packer_vm_storage_pool }}"
-        storage_pool_type = "{{ packer_vm_storage_pool_type }}"
-        type = "{{ packer_vm_disk_type }}"
+        disk_size = "20G"
+        format = "qcow2"
+        storage_pool = "{{ packer_proxmox_vm_storage_pool }}"
+        storage_pool_type = "{{ packer_proxmox_vm_storage_pool_type }}"
+        type = "{{ packer_proxmox_vm_storage_pool_type }}"
     }
-
-    # VM CPU Settings
-    cores = "{{ packer_vm_cores }}"
-    
-    # VM Memory Settings
-    memory = "{{ packer_vm_memory }}" 
+    cores = "1"
+    memory = "2048"
 
     # VM Network Settings
     network_adapters {
-        model = "{{ packer_vm_network_model }}"
-        bridge = "{{ packer_vm_network_bridge }}"
-        firewall = "{{ packer_vm_network_firewall}}"
+        model = "virtio"
+        bridge = "vmbr0"
+        firewall = "false"
     } 
 
     # VM Cloud-Init Settings
@@ -93,7 +86,7 @@ source "proxmox" "{{ packer_template_name }}" {
 
     ssh_username = "{{ packer_default_user }}"
     # (Option 1) Add your Password here
-    #ssh_password = "{{ packer_default_password }}"
+    #ssh_password = "{{ packer_default_user_password }}"
     # - or -
     # (Option 2) Add your Private SSH KEY file here
     ssh_private_key_file = "{{ packer_default_ssh_key }}"
@@ -104,8 +97,8 @@ source "proxmox" "{{ packer_template_name }}" {
 # Build Definition to create the VM Template
 build {
 
-    name = "{{ packer_template_name }}"
-    sources = ["source.proxmox.{{ packer_template_name }}"]
+    name = "{{ packer_proxmox_template_name }}"
+    sources = ["source.proxmox.{{ packer_proxmox_template_name }}"]
 
     # Provisioning the VM Template for Cloud-Init Integration in Proxmox
     provisioner "shell" {

@@ -1,0 +1,19 @@
+---
+- name: Create required directories
+  ansible.builtin.file:
+    path: "{{ item.path | dirname }}"
+    state: directory
+    mode: '0775'
+  loop: "{{ packer_config_files }}"
+  loop_control:
+    label: "{{ item.path | dirname }}"
+
+- name: Create required files
+  ansible.builtin.copy:
+    dest: "{{ item.path }}"
+    content: "{{ item.content }}"
+    mode: '0644'
+  loop: "{{ packer_config_files }}"
+  loop_control:
+    label: "{{ item.path }}"
+...

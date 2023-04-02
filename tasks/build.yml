@@ -1,0 +1,19 @@
+---
+- name: Init packer
+  ansible.builtin.command:
+    cmd: packer init .
+  args:
+    chdir: "{{ packer_working_dir }}"
+
+- name: Run packer build
+  ansible.builtin.shell:
+    cmd: packer build packer.pkr.hcl
+  environment:
+    PACKER_LOG: "1"
+    PACKER_LOG_PATH: "{{ packer_working_dir }}/packer.log"
+  args:
+    chdir: "{{ packer_working_dir }}"
+  async: 3600
+  poll: 60
+  register: packer_build_results
+...
