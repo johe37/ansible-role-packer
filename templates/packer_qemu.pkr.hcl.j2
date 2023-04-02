@@ -1,0 +1,102 @@
+packer {
+  required_version = ">= 1.8.0, < 2.0.0"
+  required_plugins {
+    qemu = {
+      source  = "github.com/hashicorp/qemu"
+      version = ">= 1.0.0, < 2.0.0"
+    }
+  }
+}
+
+source "qemu" "qemu" {
+  iso_skip_cache = false
+  iso_target_extension = "iso"
+  iso_url = "{{ packer_iso_url }}"
+  iso_checksum = "5e38b55d57d94ff029719342357325ed3bda38fa80054f9330dc789cd2d43931"
+
+  # PACKER Autoinstall Settings
+  boot_command = [
+    "<esc><wait>",
+    "e<wait>",
+    "<down><down><down><end>",
+    "<bs><bs><bs><bs><wait>",
+    "autoinstall ds=nocloud-net\\;s=http://{{ '{{' }} .HTTPIP {{ '}}' }}:{{ '{{' }}.HTTPPort {{ '}}' }}/ ---<wait>",
+    "<f10><wait>"
+  ]
+  boot_wait = "10s"
+  #host_port_max = "4444"
+  #host_port_min = "2222"
+  #http_bind_address = "10.0.0."
+  #http_content = { "/user-data" = file("{{ packer_working_dir }}/userdata") }
+  #http_port_max = "9000"
+  #http_port_min = "8000"
+  http_directory = "http"
+
+  # VM Settings
+  cpus = "1"
+  disk_cache = "writeback"
+  disk_compression = false
+  disk_discard = "ignore"
+  disk_image = false
+  disk_interface = "virtio-scsi"
+  disk_size = "7500M"
+  format = "raw"
+  memory = "1024"
+  net_device = "virtio-net"
+  vm_name = "base-{{ packer_template_name }}"
+  #vnc_bind_address = "127.0.0.1"
+  #vnc_port_max = "6000"
+  #vnc_port_min = "5900"
+  skip_nat_mapping = false
+  qemu_binary = "qemu-system-x86_64"
+  use_default_display = false
+  accelerator = "kvm"
+  communicator = "ssh"
+
+  # SSH settings
+  ssh_username = "{{ packer_default_user }}"
+  #ssh_password = "{{ packer_default_user_password }}"
+  ssh_private_key_file = "{{ packer_default_ssh_key }}"
+  ssh_timeout = "20m"
+
+  # Packer compacts the QCOW2 image using qemu-img convert. Set this option to true to disable compacting. Defaults to false.
+  skip_compaction = true
+
+  # Packer defaults to building QEMU virtual machines by launching a GUI that
+  # shows the console of the machine being built.
+  # When this value is set to true, the machine will start without a console.
+  headless = "false"
+
+  output_directory = "{{ packer_working_dir }}"
+
+  shutdown_command = "sudo su root -c \"userdel -rf {{ packer_default_user }}; rm /etc/sudoers.d/90-cloud-init-users; /sbin/shutdown -hP now\""
+  shutdown_timeout = "5m"
+}
+
+build {
+  sources = ["source.qemu.qemu"]
+
+  provisioner "shell" {
+    inline = [
+        "while [ ! -f /var/lib/cloud/instance/boot-finished ]; do echo 'Waiting for cloud-init...'; sleep 1; done",
+        "sudo rm /etc/ssh/ssh_host_*",
+        "sudo truncate -s 0 /etc/machine-id",
+        "sudo apt-get -y autoremove --purge",
+        "sudo apt-get -y clean",
+        "sudo apt-get -y autoclean",
+        "sudo cloud-init clean",
+        "sudo rm -f /etc/cloud/cloud.cfg.d/subiquity-disable-cloudinit-networking.cfg",
+        "sudo sync"
+    ]
+  }
+
+  provisioner "shell" {
+    inline = [
+      "sudo apt-get install -y ca-certificates curl gnupg lsb-release",
+      "curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg",
+      "echo \"deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable\" | sudo tee /etc/apt-get/sources.list.d/docker.list > /dev/null",
+      "sudo apt-get -y update",
+      "sudo apt-get install -y docker-ce docker-ce-cli containerd.io"
+    ]
+  }
+}

@@ -1,0 +1,27 @@
+---
+- name: Determine if Packer is installed
+  ansible.builtin.stat:
+    path: /usr/bin/packer
+  register: _packer
+
+- name: Install Packer
+  when: not _packer.stat.exists
+  block:
+    - name: Add Hashicorp GPG key
+      become: yes
+      ansible.builtin.apt_key:
+        url: https://apt.releases.hashicorp.com/gpg
+        state: present
+
+    - name: Add Hashicorp apt repository
+      become: yes
+      ansible.builtin.apt_repository:
+        repo: "deb [arch=amd64] https://apt.releases.hashicorp.com {{ ansible_lsb.codename }} main"
+        state: present
+
+    - name: Install Packer package
+      become: yes
+      ansible.builtin.package:
+        name: packer
+        state: present
+...
