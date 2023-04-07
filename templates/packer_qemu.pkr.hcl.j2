@@ -5,10 +5,14 @@ packer {
       source  = "github.com/hashicorp/qemu"
       version = ">= 1.0.9"
     }
+    ansible = {
+      version = ">=1.0.0"
+      source = "github.com/hashicorp/ansible"
+    }
   }
 }
 
-source "qemu" "qemu" {
+source "qemu" "ubuntu" {
   iso_skip_cache = false
   iso_target_extension = "iso"
   iso_url = "{{ packer_iso_url }}"
@@ -24,12 +28,6 @@ source "qemu" "qemu" {
     "<f10><wait>"
   ]
   boot_wait = "10s"
-  #host_port_max = "4444"
-  #host_port_min = "2222"
-  #http_bind_address = "10.0.0."
-  #http_content = { }
-  #http_port_max = "9000"
-  #http_port_min = "8000"
   http_directory = "http"
 
   # VM Settings
@@ -44,9 +42,6 @@ source "qemu" "qemu" {
   memory = "1024"
   net_device = "virtio-net"
   vm_name = "base-{{ packer_template_name }}"
-  #vnc_bind_address = "127.0.0.1"
-  #vnc_port_max = "6000"
-  #vnc_port_min = "5900"
   skip_nat_mapping = false
   qemu_binary = "qemu-system-x86_64"
   use_default_display = false
@@ -62,7 +57,6 @@ source "qemu" "qemu" {
   ssh_keep_alive_interval = "5s"
   ssh_username = "{{ packer_default_user }}"
   ssh_password = "{{ packer_default_user_password }}"
-  #ssh_private_key_file = ""
   ssh_port = "22"
   ssh_pty = false
   ssh_timeout = "60m"
@@ -70,9 +64,6 @@ source "qemu" "qemu" {
   # Packer compacts the QCOW2 image using qemu-img convert. Set this option to true to disable compacting. Defaults to false.
   skip_compaction = true
 
-  # Packer defaults to building QEMU virtual machines by launching a GUI that
-  # shows the console of the machine being built.
-  # When this value is set to true, the machine will start without a console.
   headless = "false"
 
   output_directory = "{{ packer_working_dir }}/build"
@@ -82,7 +73,9 @@ source "qemu" "qemu" {
 }
 
 build {
-    sources = ["source.qemu.qemu"]
+    sources = [
+      "qemu.ubuntu",
+    ]
 
     provisioner "shell" {
         inline = [

@@ -1,34 +1,194 @@
 - name: Provision image
   hosts: default
   tasks:
-    - name: Provision commands
-      become: yes
-      ansible.builtin.command:
-        cmd: "{{ item }}"
-      loop:
-        - rm /etc/ssh/ssh_host_* # Removing the SSH host keys will ensure that each new VM created from the template will have unique keys, which can be important for security reasons.
-        - truncate -s 0 /etc/machine-id # Truncating the machine ID file will ensure that each new VM has a unique machine ID, which can be important for certain applications that use the machine ID to generate unique identifiers.
-        - apt -y autoremove --purge # The other commands down below clean up unnecessary files and packages, which can help to reduce the size of the template and improve performance when provisioning new VMs.
-        - apt -y clean
-        - apt -y autoclean
-        - cloud-init clean
-        - rm -f /etc/cloud/cloud.cfg.d/subiquity-disable-cloudinit-networking.cfg
-        - sync
+    - name: Upgrade packages
+      ansible.builtin.dnf:
+        name: '*'
+        state: latest
+        allowerasing: yes
 
-    - name: Provision the cloud-init config
-      become: yes
-      ansible.builtin.copy:
-        dest: "/etc/cloud/cloud.cfg.d/99-pve.cfg"
-        content: "datasource_list: [ConfigDrive, NoCloud]"
-        mode: '0640'
+    - name: Disable firstboot
+      lineinfile:
+        path: /etc/sysconfig/firstboot
+        regexp: '^RUN_FIRSTBOOT='
+        line: 'RUN_FIRSTBOOT=NO'
+        create: true
+        owner: root
+        group: root
+        mode: '0644'
 
-    - name: Install Docker
-      become: yes
-      ansible.builtin.shell:
-        cmd: "{{ item }}"
+    - name: Install cloud-init
+      package:
+        name:
+          - cloud-init
+          - cloud-utils-growpart
+          - dracut-config-generic
+
+    - name: Enable cloud-init services
+      service:
+        name: "{{ item }}"
+        enabled: true
+      with_items:
+        - cloud-config
+        - cloud-init
+        - cloud-init-local
+        - cloud-final
+
+    - name: Remove firewall and linux-firmware
+      package:
+        name:
+          - firewalld
+          - firewalld-filesystem
+          - ipset
+          - ipset-libs
+          - iptables
+          - python3-firewall
+          - python3-slip
+          - libnftnl
+          - libnfnetlink
+          - linux-firmware
+        state: absent
+
+    - name: Install additional software
+      package:
+        name:
+          - cockpit-system
+          - cockpit-ws
+          - dnf-utils
+          - gdisk
+          - nfs-utils
+          - qemu-guest-agent
+          - rsync
+          - tar
+          - tuned
+          - tcpdump
+
+    - name: Regenerate the initramfs
+      command: dracut -f --regenerate-all
+
+    - name: Disable root login
+      user:
+        name: root
+        password: '!!'
+
+    - name: Delete DNF cache
+      command: dnf clean all
+
+    - name: Find temporary files
+      find:
+        file_type: any
+        paths:
+          - /tmp
+          - /var/tmp
+          - /var/cache
+        patterns: '*'
+      register: tmp_files
+
+    - name: Remove temporary files
+      file:
+        path: "{{ item.path }}"
+        state: absent
+      loop: "{{ tmp_files.files }}"
+
+    - name: Find SSH host keys
+      find:
+        paths: /etc/ssh
+        patterns: 'host*key'
+      register: host_keys
+
+    - name: Remove SSH host keys
+      file:
+        path: "{{ item.path }}"
+        state: absent
+      loop: "{{ host_keys.files }}"
+
+    - name: Remove kickstart files
+      file:
+        path: "{{ item }}"
+        state: absent
       loop:
-        - apt install -y ca-certificates curl gnupg lsb-release
-        - curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
-        - echo \"deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable\" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-        - apt -y update
-        - apt install -y docker-ce docker-ce-cli containerd.io
+        - /root/anaconda-ks.cfg
+        - /root/original-ks.cfg
+
+    - name: Truncate files
+      command: "truncate -s 0 {{ item }}"
+      loop:
+        - /etc/machine-id
+        - /etc/resolv.conf
+        - /var/log/audit/audit.log
+        - /var/log/wtmp
+        - /var/log/lastlog
+        - /var/log/btmp
+        - /var/log/cron
+        - /var/log/maillog
+        - /var/log/messages
+        - /var/log/secure
+        - /var/log/spooler
+
+    - name: Remove log folders
+      file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /var/log/anaconda
+        - /var/log/qemu-ga
+        - /var/log/tuned
+        - /var/lib/cloud
+
+    - name: Find log files.
+      find:
+        paths:
+          - /var/log
+          - /var/log/sssd
+        patterns: 'log,.old,*.log.gz,*.[0-9],*.gz,*-????????'
+      register: log_files
+
+    - name: Remove log files
+      file:
+        path: "{{ item.path }}"
+        state: absent
+      loop: "{{ log_files.files }}"
+
+    - name: Remove random-seed
+      file:
+        path: /var/lib/systemd/random-seed
+        state: absent
+
+    - name: Disable root SSH login via password
+      file:
+        path: /etc/ssh/sshd_config.d/01-permitrootlogin.conf
+        state: absent
+      when: ansible_facts['distribution_major_version'] == '9'
+
+    - name: Fill free space with zeroes
+      shell: dd if=/dev/zero of=/zeroed_file bs=1M oflag=direct || rm -f /zeroed_file
+
+    - name: Detect swap partition
+      command: grep -oP '^/dev/[\w-]+' /proc/swaps
+      register: swaps
+      ignore_errors: true
+
+    - name: Wipe out swap data
+      block:
+        - name: Get swap partition UUID
+          command: "blkid {{ swaps.stdout }} -s UUID -o value"
+          register: swap_blkid
+
+        - name: Unmount swap partition
+          command: "swapoff {{ swaps.stdout }}"
+
+        - name: Fill swap partition with zeroes
+          shell: "dd if=/dev/zero of={{ swaps.stdout }} bs=1M oflag=direct || /bin/true"
+
+        - name: Format swap partition
+          command: "mkswap -U {{ swap_blkid.stdout }} -f {{ swaps.stdout }}"
+
+        - name: Mount swap partition
+          command: "swapon {{ swaps.stdout }}"
+      when: swaps.rc == 0
+
+    - name: Sync disc
+      command: sync
+
+    - name: Clear shell history
+      shell: history -c

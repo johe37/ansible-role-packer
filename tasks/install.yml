@@ -1,11 +1,24 @@
 ---
-- name: Determine if Packer is installed
-  ansible.builtin.stat:
-    path: /usr/bin/packer
-  register: _packer
+- name: Install Packer for Fedora
+  when: ansible_distribution == 'Fedora'
+  block:
+    - name: Install dnf-plugins-core
+      become: true
+      ansible.builtin.package:
+        name: dnf-plugins-core
+        state: latest
 
-- name: Install Packer
-  when: not _packer.stat.exists
+    - name: Add HashiCorp repository to dnf config manager
+      become: true
+      ansible.builtin.yum_repository:
+        name: hashicorp
+        description: HashiCorp Stable Repository
+        baseurl: https://rpm.releases.hashicorp.com/fedora/{{ ansible_distribution_major_version }}/x86_64/stable/
+        gpgcheck: yes
+        gpgkey: https://rpm.releases.hashicorp.com/gpg
+
+- name: Install Packer for Debian
+  when: ansible_os_family == 'Debian'
   block:
     - name: Add Hashicorp GPG key
       become: yes
@@ -19,9 +32,9 @@
         repo: "deb [arch=amd64] https://apt.releases.hashicorp.com {{ ansible_lsb.codename }} main"
         state: present
 
-    - name: Install Packer package
-      become: yes
-      ansible.builtin.package:
-        name: packer
-        state: present
+- name: Install Packer package
+  become: yes
+  ansible.builtin.package:
+    name: packer
+    state: present
 ...
