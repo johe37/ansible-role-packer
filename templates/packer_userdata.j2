@@ -8,7 +8,7 @@ ssh:
   install-server: true
   allow-pw: true
   ssh_pwauth: true
-  disable_root: true
+  disable_root: false
   allow_public_ssh_keys: true
 packages:
   - qemu-guest-agent
@@ -21,10 +21,8 @@ storage:
 user-data:
   package_upgrade: false
   timezone: Europe/Stockholm
-  users:
-      - name: {{ packer_default_user }}
-  password: {{ packer_default_user_password_crypt }}
-  groups: sudo
-  shell: /bin/bash
-  sudo: ALL=(ALL) NOPASSWD:ALL
   lock-passwd: false
+chpasswd:
+  list: |
+    root:changeme
+  expire: False
