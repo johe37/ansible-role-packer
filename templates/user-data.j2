@@ -1,0 +1,25 @@
+#cloud-config
+autoinstall:
+  version: 1
+  locale: en_US
+  keyboard:
+    layout: se
+  user-data:
+    disable_root: false
+  ssh:
+    allow-pw: true
+    install-server: true
+  storage:
+    layout:
+      name: lvm
+  identity:
+    hostname: ubuntu
+    username: packer
+    password: $6$rounds=4096$26y.5yhl0B3LYVBA$zowa2Hdfp03YUpZblZA9kp4OvF2wN/bqzFR2/wPYB5mlnAy3k0r1afZdPy/EI2IfB1cpfl.hHp3L36kVImFYB.
+  packages:
+    - openssh-server
+    - sudo
+  late-commands:
+    - sed -i -e 's/^#\?PasswordAuthentication.*/PasswordAuthentication yes/g' /target/etc/ssh/sshd_config
+    - sed -i -e 's/^#\?PermitRootLogin.*/PermitRootLogin yes/g' /target/etc/ssh/sshd_config
+    - echo 'packer ALL=(ALL) NOPASSWD:ALL' > /target/etc/sudoers.d/packer

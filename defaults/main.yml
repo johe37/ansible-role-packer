@@ -1,14 +1,20 @@
 ---
 packer_working_dir: "{{ lookup('env', 'PWD') }}/tmp/packer"
-packer_iso_url: https://releases.ubuntu.com/22.10/ubuntu-22.10-live-server-amd64.iso
-packer_iso_checksum: 874452797430a94ca240c95d8503035aa145bd03ef7d84f9b23b78f3c5099aed
-packer_iso_file: "{{ packer_iso_url | basename }}"
-packer_template_name: "{{ packer_iso_file | replace('.iso', '') }}"
-packer_default_user: packer
-packer_default_user_password: changeme
-packer_default_user_password_crypt: "{{ packer_default_user_password | password_hash('sha512') }}"
-packer_userdata_content: "{{ lookup('template', 'packer_userdata.j2') }}"
+packer_userdata_content: 
 packer_template_content: ~
+packer_config_files:
+  - path: "{{ packer_working_dir }}/packer.pkr.hcl"
+    content: "{{ packer_template_content | default('Set the packer_template_content variable to specify which template to use.') }}"
+  - path: "{{ packer_working_dir }}/files/99-pve.cfg" # For proxmox
+    content: "datasource_list: [ConfigDrive, NoCloud]"
+  - path: "{{ packer_working_dir }}/http/meta-data"
+    content: ""
+  - path: "{{ packer_working_dir }}/http/user-data"
+    content: "{{ lookup('file', lookup('env', 'PWD') + '/ansible/roles/packer/templates/user-data.j2') }}"
+  - path: "{{ packer_working_dir }}/http/target.ks"
+    content: "{{ packer_ks }}"
+  - path: "{{ packer_working_dir }}/files/provision-image.yml"
+    content: "{{ lookup('file', lookup('env', 'PWD') + '/ansible/roles/packer/files/playbooks/provision-image.yml') }}"
 packer_ks: |
   url --url="https://repo.almalinux.org/almalinux/9.1/BaseOS/x86_64/kickstart/"
   text
@@ -50,11 +56,6 @@ packer_ks: |
 
   %post
   sed -i "s/#PermitRootLogin prohibit-password/PermitRootLogin yes/g" /etc/ssh/sshd_config
-  #echo "user ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
-  cat <<EOF >> /etc/sudoers
-  Defaults !requiretty
-  root ALL=(ALL) ALL
-  EOF
 
   # Enable NetworkManager, sshd and disable firewalld
   #/usr/bin/systemctl enable NetworkManager
@@ -67,19 +68,6 @@ packer_ks: |
   /usr/bin/systemctl start qemu-guest-agent
 
   %end
-packer_config_files:
-  - path: "{{ packer_working_dir }}/packer.pkr.hcl"
-    content: "{{ packer_template_content | default('Set the packer_template_content variable to specify which template to use.') }}"
-  - path: "{{ packer_working_dir }}/files/99-pve.cfg" # For proxmox
-    content: "datasource_list: [ConfigDrive, NoCloud]"
-  - path: "{{ packer_working_dir }}/http/metadata"
-    content: ""
-  - path: "{{ packer_working_dir }}/http/userdata"
-    content: "{{ packer_userdata_content }}"
-  - path: "{{ packer_working_dir }}/http/target.ks"
-    content: "{{ packer_ks }}"
-  - path: "{{ packer_working_dir }}/files/provision-image.yml"
-    content: "{{ lookup('file', lookup('env', 'PWD') + '/ansible/roles/packer/files/playbooks/provision-image.yml') }}"
 
 ################################### PACKER PROXMOX ####################################
 #
@@ -91,25 +79,4 @@ packer_proxmox_build_name: ubuntu-22-10
 packer_proxmox_template_name: "{{ packer_proxmox_build_name }}-template-v1"
 packer_proxmox_iso_storage_pool: ~
 packer_proxmox_vm_storage_pool: ~
-
-################################### PACKER QEMU ####################################
-#
-
-################################### PACKER UBUNTU ####################################
-#
-packer_provisioner_commands_ubuntu:
-  - while [ ! -f /var/lib/cloud/instance/boot-finished ]; do echo 'Waiting for cloud-init...'; sleep 1; done
-  - sudo rm /etc/ssh/ssh_host_*
-  - sudo truncate -s 0 /etc/machine-id
-  - sudo apt-get -y autoremove --purge
-  - sudo apt-get -y clean
-  - sudo apt-get -y autoclean
-  - sudo cloud-init clean
-  - sudo rm -f /etc/cloud/cloud.cfg.d/subiquity-disable-cloudinit-networking.cfg
-  - sudo sync
-  - sudo apt-get install -y ca-certificates curl gnupg lsb-release
-  - curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
-  - echo \"deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable\" | sudo tee /etc/apt-get/sources.list.d/docker.list > /dev/null
-  - sudo apt-get -y update
-  - sudo apt-get install -y docker-ce docker-ce-cli containerd.io
 ...
