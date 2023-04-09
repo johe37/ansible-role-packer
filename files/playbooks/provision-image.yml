@@ -1,11 +1,12 @@
+---
 - name: Provision image
   hosts: default
+  become: yes # added for ubuntu
   tasks:
     - name: Upgrade packages
-      ansible.builtin.dnf:
+      ansible.builtin.package:
         name: '*'
         state: latest
-        allowerasing: yes
 
     - name: Disable firstboot
       lineinfile:
@@ -21,7 +22,7 @@
       package:
         name:
           - cloud-init
-          - cloud-utils-growpart
+          #- cloud-utils-growpart # commmented for ubuntu
           - dracut-config-generic
 
     - name: Enable cloud-init services
@@ -54,14 +55,17 @@
         name:
           - cockpit-system
           - cockpit-ws
-          - dnf-utils
+          #- dnf-utils # commented for ubuntu
           - gdisk
-          - nfs-utils
+          #- nfs-utils # commented for ubuntu
           - qemu-guest-agent
           - rsync
           - tar
           - tuned
           - tcpdump
+          - vim
+          - jq
+          - sudo
 
     - name: Regenerate the initramfs
       command: dracut -f --regenerate-all
@@ -72,7 +76,12 @@
         password: '!!'
 
     - name: Delete DNF cache
-      command: dnf clean all
+      ansible.builtin.command: dnf clean all
+      when: "ansible_os_family == 'RedHat'"
+
+    - name: Delete APT cache (Debian-based systems)
+      ansible.builtin.command: apt-get clean
+      when: "'Debian' in ansible_distribution or 'Ubuntu' in ansible_distribution"
 
     - name: Find temporary files
       find:
@@ -110,20 +119,20 @@
         - /root/anaconda-ks.cfg
         - /root/original-ks.cfg
 
-    - name: Truncate files
-      command: "truncate -s 0 {{ item }}"
-      loop:
-        - /etc/machine-id
-        - /etc/resolv.conf
-        - /var/log/audit/audit.log
-        - /var/log/wtmp
-        - /var/log/lastlog
-        - /var/log/btmp
-        - /var/log/cron
-        - /var/log/maillog
-        - /var/log/messages
-        - /var/log/secure
-        - /var/log/spooler
+#    - name: Truncate files
+#      command: "truncate -s 0 {{ item }}"
+#      loop:
+#        - /etc/machine-id
+#        - /etc/resolv.conf
+#        - /var/log/audit/audit.log
+#        - /var/log/wtmp
+#        - /var/log/lastlog
+#        - /var/log/btmp
+#        - /var/log/cron
+#        - /var/log/maillog
+#        - /var/log/messages
+#        - /var/log/secure
+#        - /var/log/spooler
 
     - name: Remove log folders
       file:
@@ -158,37 +167,23 @@
       file:
         path: /etc/ssh/sshd_config.d/01-permitrootlogin.conf
         state: absent
-      when: ansible_facts['distribution_major_version'] == '9'
 
     - name: Fill free space with zeroes
       shell: dd if=/dev/zero of=/zeroed_file bs=1M oflag=direct || rm -f /zeroed_file
 
-    - name: Detect swap partition
-      command: grep -oP '^/dev/[\w-]+' /proc/swaps
-      register: swaps
-      ignore_errors: true
+    - name: Turn off swap
+      ansible.builtin.command:
+        cmd: swapoff -a
 
-    - name: Wipe out swap data
-      block:
-        - name: Get swap partition UUID
-          command: "blkid {{ swaps.stdout }} -s UUID -o value"
-          register: swap_blkid
-
-        - name: Unmount swap partition
-          command: "swapoff {{ swaps.stdout }}"
-
-        - name: Fill swap partition with zeroes
-          shell: "dd if=/dev/zero of={{ swaps.stdout }} bs=1M oflag=direct || /bin/true"
-
-        - name: Format swap partition
-          command: "mkswap -U {{ swap_blkid.stdout }} -f {{ swaps.stdout }}"
-
-        - name: Mount swap partition
-          command: "swapon {{ swaps.stdout }}"
-      when: swaps.rc == 0
+    - name: Remove swap entry from /etc/fstab
+      ansible.builtin.lineinfile:
+        path: /etc/fstab
+        regexp: '.*swap.*'
+        state: absent
 
     - name: Sync disc
       command: sync
 
     - name: Clear shell history
-      shell: history -c
+      shell: echo '' > ~/.bash_history
+...

@@ -5,12 +5,12 @@
   args:
     chdir: "{{ packer_working_dir }}"
 
-#- name: Run packer build
-#  ansible.builtin.shell:
-#    cmd: packer build packer.pkr.hcl
-#  environment:
-#    PACKER_LOG: "1"
-#    PACKER_LOG_PATH: "{{ packer_working_dir }}/packer.log"
-#  args:
-#    chdir: "{{ packer_working_dir }}"
+- name: Run packer build
+  ansible.builtin.shell:
+    cmd: packer build -force packer.pkr.hcl
+  environment:
+    PACKER_LOG: "1"
+    PACKER_LOG_PATH: "{{ packer_working_dir }}/packer.log"
+  args:
+    chdir: "{{ packer_working_dir }}"
 ...
