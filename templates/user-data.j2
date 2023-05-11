@@ -7,19 +7,26 @@ autoinstall:
   user-data:
     disable_root: false
   ssh:
-    allow-pw: true
     install-server: true
+    allow-pw: true
+    allow_public_ssh_keys: true
+    disable_root: false
   storage:
     layout:
-      name: lvm
-  identity:
-    hostname: ubuntu
-    username: packer
-    password: $6$rounds=4096$26y.5yhl0B3LYVBA$zowa2Hdfp03YUpZblZA9kp4OvF2wN/bqzFR2/wPYB5mlnAy3k0r1afZdPy/EI2IfB1cpfl.hHp3L36kVImFYB.
+      name: direct
+    swap: 0
+  user-data:
+    package_upgrade: false
+    timezone: Europe/Stockholm
+    users:
+      - user: packer
+        password: $6$LOCrzJFxBtDEzcq5$hoNQiancUnsmNe9H0dzP3U6cE.8juWTMWu2wXfgZ3rHf9bW2dIDeylqAfm7fqzf4fNYQ5bR3abyjdC2Ztg2.i.
+        ssh_authorized_keys:
+            - {{ lookup('file', '~/.ssh/home.pub') }}
+        groups: sudo
+        shell: /bin/bash
+        sudo: ALL=(ALL) NOPASSWD:ALL
+        lock-passwd: false
   packages:
     - openssh-server
     - sudo
-  late-commands:
-    - sed -i -e 's/^#\?PasswordAuthentication.*/PasswordAuthentication yes/g' /target/etc/ssh/sshd_config
-    - sed -i -e 's/^#\?PermitRootLogin.*/PermitRootLogin yes/g' /target/etc/ssh/sshd_config
-    - echo 'packer ALL=(ALL) NOPASSWD:ALL' > /target/etc/sudoers.d/packer
