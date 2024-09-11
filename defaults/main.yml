@@ -1,24 +1,22 @@
 ---
 packer_working_dir: "{{ lookup('env', 'PWD') }}/tmp/packer"
+packer_userdata_content:
 packer_template_content: ~
 packer_config_files:
   - path: "{{ packer_working_dir }}/packer.pkr.hcl"
     content: "{{ packer_template_content | default('Set the packer_template_content variable to specify which template to use.') }}"
-  - path: "{{ packer_working_dir }}/files/99-pve.cfg" # For proxmox
-    content: "datasource_list: [ConfigDrive, NoCloud]"
   - path: "{{ packer_working_dir }}/http/meta-data"
     content: ""
   - path: "{{ packer_working_dir }}/http/user-data"
-    content: "{{ lookup('template', lookup('env', 'PWD') + '/ansible/roles/packer/templates/user-data.j2') }}"
+    content: "{{ lookup('template', 'user-data.j2') }}"
   - path: "{{ packer_working_dir }}/http/target.ks"
     content: "{{ packer_ks }}"
   - path: "{{ packer_working_dir }}/files/provision-image.yml"
-    content: "{{ lookup('file', lookup('env', 'PWD') + '/ansible/roles/packer/files/playbooks/provision-image.yml') }}"
+    content: "{{ lookup('file', 'playbooks/provision-image.yml') }}"
 packer_ks: |
   url --url="https://repo.almalinux.org/almalinux/9.1/BaseOS/x86_64/kickstart/"
   text
   firstboot --disabled
-  bootloader --append="nofb ipv6.disable=1 selinux=0 noselinux geoloc=0 consoleblank=0 audit=0 inst.sshd" --location=mbr
 
   lang en_US.UTF-8
   keyboard se
@@ -68,10 +66,4 @@ packer_ks: |
   /usr/bin/systemctl start qemu-guest-agent
 
   %end
-
-################################### PACKER PROXMOX ####################################
-#
-packer_proxmox_api_url: ~
-packer_proxmox_api_user: ~
-packer_proxmox_api_password: ~
 ...

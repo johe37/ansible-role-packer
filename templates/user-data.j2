@@ -22,7 +22,7 @@ autoinstall:
       - user: packer
         password: $6$LOCrzJFxBtDEzcq5$hoNQiancUnsmNe9H0dzP3U6cE.8juWTMWu2wXfgZ3rHf9bW2dIDeylqAfm7fqzf4fNYQ5bR3abyjdC2Ztg2.i.
         ssh_authorized_keys:
-            - {{ lookup('file', '~/.ssh/home.pub') }}
+            - {{ lookup('file', '~/.ssh/lab.pub') }}
         groups: sudo
         shell: /bin/bash
         sudo: ALL=(ALL) NOPASSWD:ALL
