@@ -13,8 +13,8 @@ packer {
 }
 
 source "qemu" "almalinux" {
-  iso_url = "http://mirror.accum.se/mirror/almalinux.org/9.1/isos/x86_64/AlmaLinux-9-latest-x86_64-boot.iso"
-  iso_checksum = "9f22bd98c8930b1d0b2198ddd273c6647c09298e10a0167197a3f8c293d03090"
+  iso_url = "http://pve2.lan.hellnet.se:8080/iso/AlmaLinux-9.2-x86_64-boot.iso"
+  iso_checksum = "none"
   vm_name = "packer-almalinux-9-1.qcow2"
   http_directory = "http"
   boot_wait = "10s"
@@ -36,8 +36,9 @@ source "qemu" "almalinux" {
   net_device = "virtio-net"
   vnc_bind_address = "0.0.0.0"
   vnc_port_min = "5900"
-  vnc_port_max = "5910"
+  vnc_port_max = "5900"
   qemuargs = [["-m", "8192M"], ["-smp", "2"], ["-cpu", "host"]]
+  headless = true
 }
 
 build {
