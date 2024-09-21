@@ -1,12 +1,11 @@
 ---
-- name: Install Packer for Fedora
-  when: ansible_distribution == 'Fedora'
+- name: Install Packer for RedHat
+  when: ansible_os_family == 'RedHat'
   block:
     - name: Install dnf-plugins-core
       become: true
       ansible.builtin.package:
         name: dnf-plugins-core
-        state: latest
 
     - name: Add HashiCorp repository to dnf config manager
       become: true
@@ -14,7 +13,7 @@
         name: hashicorp
         description: HashiCorp Stable Repository
         baseurl: https://rpm.releases.hashicorp.com/fedora/{{ ansible_distribution_major_version }}/x86_64/stable/
-        gpgcheck: yes
+        gpgcheck: true
         gpgkey: https://rpm.releases.hashicorp.com/gpg
 
 - name: Install Packer for Debian

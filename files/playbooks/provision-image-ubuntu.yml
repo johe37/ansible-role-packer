@@ -1,0 +1,177 @@
+---
+- name: Provision image
+  hosts: default
+  tasks:
+    - name: Upgrade packages
+      ansible.builtin.package:
+        name: '*'
+        state: latest
+
+    - name: Disable firstboot
+      ansible.builtin.lineinfile:
+        path: /etc/sysconfig/firstboot
+        regexp: '^RUN_FIRSTBOOT='
+        line: 'RUN_FIRSTBOOT=NO'
+        create: true
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Install packages
+      ansible.builtin.package:
+        name:
+          - cloud-init
+          - dracut-config-generic
+          - gdisk
+          - qemu-guest-agent
+          - rsync
+          - tar
+          - tuned
+          - tcpdump
+          - vim
+          - jq
+          - sudo
+
+    - name: Enable cloud-init services
+      ansible.builtin.service:
+        name: "{{ item }}"
+        enabled: true
+      with_items:
+        - cloud-config
+        - cloud-init
+        - cloud-init-local
+        - cloud-final
+
+    - name: Clean cloud-init
+      ansible.builtin.command:
+        cmd: cloud-init clean
+      changed_when: true
+
+    - name: Regenerate the initramfs
+      ansible.builtin.command:
+        cmd: dracut -f --regenerate-all
+      changed_when: true
+
+    - name: Disable root login
+      ansible.builtin.user:
+        name: root
+        password: '!!'
+
+    - name: Clean apt
+      ansible.builtin.command:
+        cmd: "{{ item }}"
+      loop:
+        - apt -y autoremove --purge
+        - apt -y clean
+        - apt -y autoclean
+      changed_when: true
+
+    - name: Find temporary files
+      ansible.builtin.find:
+        file_type: any
+        paths:
+          - /tmp
+          - /var/tmp
+          - /var/cache
+        patterns: '*'
+      register: tmp_files
+
+    - name: Remove temporary files
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: absent
+      loop: "{{ tmp_files.files }}"
+
+    - name: Find SSH host keys
+      ansible.builtin.find:
+        paths: /etc/ssh
+        patterns: 'host*key'
+      register: host_keys
+
+    - name: Remove SSH host keys
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: absent
+      loop: "{{ host_keys.files }}"
+
+    - name: Find authorized_keys
+      ansible.builtin.find:
+        paths: /
+        patterns: 'authorized_keys'
+        recurse: true
+      register: auth_keys
+
+    - name: Remove authorized keys
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: absent
+      loop: "{{ auth_keys.files }}"
+
+    - name: Remove log folders
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /var/log/qemu-ga
+        - /var/log/tuned
+        - /var/lib/cloud
+
+    - name: Find log files.
+      ansible.builtin.find:
+        paths:
+          - /var/log
+          - /var/log/sssd
+        patterns: 'log,.old,*.log.gz,*.[0-9],*.gz,*-????????'
+      register: log_files
+
+    - name: Remove log files
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: absent
+      loop: "{{ log_files.files }}"
+
+    - name: Remove random-seed
+      ansible.builtin.file:
+        path: /var/lib/systemd/random-seed
+        state: absent
+
+    - name: Disable root SSH login
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^PermitRootLogin'
+        insertafter: '^#PermitRootLogin '
+        line: 'PermitRootLogin no'
+
+    - name: Disable root SSH login with password
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^PasswordAuthentication'
+        insertafter: '^#PasswordAuthentication '
+        line: 'PasswordAuthentication no'
+
+    - name: Fill free space with zeroes
+      ansible.builtin.shell:
+        cmd: dd if=/dev/zero of=/zeroed_file bs=1M oflag=direct || rm -f /zeroed_file
+      changed_when: true
+
+    - name: Turn off swap
+      ansible.builtin.command:
+        cmd: swapoff -a
+      changed_when: true
+
+    - name: Remove swap entry from /etc/fstab
+      ansible.builtin.lineinfile:
+        path: /etc/fstab
+        regexp: '.*swap.*'
+        state: absent
+
+    - name: Sync disc
+      ansible.builtin.command:
+        cmd: sync
+      changed_when: true
+
+    - name: Clear shell history
+      ansible.builtin.shell:
+        cmd: echo '' > ~/.bash_history
+      changed_when: true
+...

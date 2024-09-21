@@ -1,69 +1,28 @@
 ---
 packer_working_dir: "{{ lookup('env', 'PWD') }}/tmp/packer"
-packer_userdata_content:
-packer_template_content: ~
+packer_builder: ~
 packer_config_files:
-  - path: "{{ packer_working_dir }}/packer.pkr.hcl"
-    content: "{{ packer_template_content | default('Set the packer_template_content variable to specify which template to use.') }}"
-  - path: "{{ packer_working_dir }}/http/meta-data"
+  - path: "{{ packer_working_dir }}/packer.pkr.hcl"       # Packer builder
+    content: "{{ packer_builder | default('Set the packer_builder variable to specify which template to use.') }}"
+  - path: "{{ packer_working_dir }}/http/meta-data"       # Needed in general
     content: ""
-  - path: "{{ packer_working_dir }}/http/user-data"
-    content: "{{ lookup('template', 'user-data.j2') }}"
-  - path: "{{ packer_working_dir }}/http/target.ks"
-    content: "{{ packer_ks }}"
-  - path: "{{ packer_working_dir }}/files/provision-image.yml"
-    content: "{{ lookup('file', 'playbooks/provision-image.yml') }}"
-packer_ks: |
-  url --url="https://repo.almalinux.org/almalinux/9.1/BaseOS/x86_64/kickstart/"
-  text
-  firstboot --disabled
+  - path: "{{ packer_working_dir }}/files/99-pve.cfg"     # Needed for Proxmox builds
+    content: "datasource_list: [ConfigDrive, NoCloud]"
+  - path: "{{ packer_working_dir }}/http/user-data"       # Needed for Ubuntu
+    content: "{{ lookup('file', 'user-data') }}"
+  - path: "{{ packer_working_dir }}/http/alma-ks.cfg"     # Needed for Alma
+    content: "{{ lookup('file', 'alma-ks.cfg') }}"
+  - path: "{{ packer_working_dir }}/http/preseed.cfg"     # Needed for Debian
+    content: "{{ lookup('file', 'preseed.cfg') }}"
+  - path: "{{ packer_working_dir }}/files/provision-image-rhel.yml"
+    content: "{{ lookup('file', 'playbooks/provision-image-rhel.yml') }}"
+  - path: "{{ packer_working_dir }}/files/provision-image-ubuntu.yml"
+    content: "{{ lookup('file', 'playbooks/provision-image-ubuntu.yml') }}"
+  - path: "{{ packer_working_dir }}/files/provision-image-debian.yml"
+    content: "{{ lookup('file', 'playbooks/provision-image-debian.yml') }}"
 
-  lang en_US.UTF-8
-  keyboard se
-  timezone UTC --utc
-  network --bootproto=dhcp --device=link
-
-  # Clear the Master Boot Record
-  zerombr
-  # Remove partitions
-  clearpart --all --initlabel
-  # Automatically create partitions using LVM
-  autopart --type=lvm
-
-  rootpw --plaintext changeme
-
-  reboot --eject
-
-  %packages
-  @core
-  -biosdevname
-  -open-vm-tools
-  -plymouth
-  -dnf-plugin-spacewalk
-  -rhn*
-  -iprutils
-  -iwl*-firmware
-  openssh-server
-  %end
-
-
-  # disable kdump service
-  %addon com_redhat_kdump --disable
-  %end
-
-
-  %post
-  sed -i "s/#PermitRootLogin prohibit-password/PermitRootLogin yes/g" /etc/ssh/sshd_config
-
-  # Enable NetworkManager, sshd and disable firewalld
-  #/usr/bin/systemctl enable NetworkManager
-  /usr/bin/systemctl enable sshd
-  /usr/bin/systemctl start sshd
-  #/usr/bin/systemctl disable firewalld
-
-  # Need for host/guest communication
-  /usr/bin/systemctl enable qemu-guest-agent
-  /usr/bin/systemctl start qemu-guest-agent
-
-  %end
+packer_proxmox_node: ~
+packer_proxmox_api_url: ~
+packer_proxmox_api_user: ~
+packer_proxmox_api_password: ~
 ...
