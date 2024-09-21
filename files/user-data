@@ -1,0 +1,33 @@
+#cloud-config
+autoinstall:
+  version: 1
+  locale: en_US
+  keyboard:
+    layout: se
+  storage:
+    layout:
+      name: lvm
+    swap:
+      size: 0
+  packages:
+    - sudo
+    - qemu-guest-agent
+  ssh:
+    install-server: true
+    allow-pw: true
+    disable_root: false
+  identity:
+    hostname: packer
+    username: root
+    password: $6$NkZxb5Ehm98IfyvF$ESkmlui5tlwT9u9qPIn1WlWJ6A9lr2nhcltyzK4NF8UedTefrqWcAPYKMD8ft97xBo3BUXG7XnPK9KWwWkhGe0
+  user-data:
+    package_upgrade: false
+    timezone: Europe/Stockholm
+    disable_root: false
+    chpasswd:
+      expire: false
+      list:
+        - root:$6$NkZxb5Ehm98IfyvF$ESkmlui5tlwT9u9qPIn1WlWJ6A9lr2nhcltyzK4NF8UedTefrqWcAPYKMD8ft97xBo3BUXG7XnPK9KWwWkhGe0
+  late-commands:
+    - sed -i -e 's/^#\?PasswordAuthentication.*/PasswordAuthentication yes/g' /target/etc/ssh/sshd_config
+    - sed -i -e 's/^#\?PermitRootLogin.*/PermitRootLogin yes/g' /target/etc/ssh/sshd_config

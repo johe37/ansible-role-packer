@@ -1,0 +1,38 @@
+# Tasks that is useful when running Packer on a remote host and
+# you want to monitor the image build.
+---
+- name: Install packages
+  become: true
+  ansible.builtin.package:
+    name: "{{ item }}"
+  loop:
+    - novnc
+
+- name: Create novnc service
+  become: true
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/novnc.service
+    mode: '0644'
+    content: |
+      [Unit]
+      Description=noVNC Websocket Proxy Service
+      After=network.target
+
+      [Service]
+      Type=simple
+      User=root
+      ExecStart=/usr/bin/novnc_proxy --vnc localhost:5900
+      Restart=on-failure
+      Environment="DISPLAY=:0"
+      StandardOutput=journal
+      StandardError=journal
+
+      [Install]
+      WantedBy=multi-user.target
+
+- name: Start novnc service
+  become: true
+  ansible.builtin.service:
+    name: novnc
+    state: started
+...

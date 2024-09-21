@@ -4,6 +4,7 @@
     cmd: packer init .
   args:
     chdir: "{{ packer_working_dir }}"
+  changed_when: true
 
 - name: Run packer build
   ansible.builtin.shell:
@@ -13,4 +14,5 @@
     PACKER_LOG_PATH: "{{ packer_working_dir }}/packer.log"
   args:
     chdir: "{{ packer_working_dir }}"
+  changed_when: true
 ...

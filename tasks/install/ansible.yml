@@ -1,0 +1,13 @@
+# If building ona remote host, Ansible is needed.
+---
+- name: Install packages
+  become: true
+  ansible.builtin.package:
+    name: "{{ item }}"
+  loop:
+    - python3-pip
+
+- name: Install ansible
+  ansible.builtin.pip:
+    name: ansible
+...
