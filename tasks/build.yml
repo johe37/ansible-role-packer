@@ -7,7 +7,7 @@
   changed_when: true
 
 - name: Run packer build
-  ansible.builtin.shell:
+  ansible.builtin.command:
     cmd: packer build -force packer.pkr.hcl
   environment:
     PACKER_LOG: "1"
