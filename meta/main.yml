@@ -1,0 +1,27 @@
+---
+dependencies: []
+
+galaxy_info:
+  role_name: packer
+  author: johe37
+  description: Build cloud images with Packer.
+  company: hellnet
+  license: MIT
+  issue_tracker_url: https://github.com/johe37/ansible-role-packer/issues
+  min_ansible_version: '2.15'
+  platforms:
+    - name: Debian
+      versions:
+        - all
+    - name: Ubuntu
+      versions:
+        - jammy
+        - noble
+    - name: EL
+      versions:
+        - all
+  galaxy_tags:
+    - packer
+    - linux
+    - vm
+    - novnc
