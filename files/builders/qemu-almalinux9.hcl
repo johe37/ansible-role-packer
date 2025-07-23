@@ -13,7 +13,7 @@ packer {
 }
 
 source "qemu" "almalinux" {
-  iso_url = "http://pve2.lan.hellnet.se:8080/iso/AlmaLinux-9.2-x86_64-boot.iso"
+  iso_url = "https://raw.repo.almalinux.org/almalinux/9/isos/x86_64/AlmaLinux-9-latest-x86_64-boot.iso"
   iso_checksum = "none"
   vm_name = "packer-almalinux-9.qcow2"
   http_directory = "http"
@@ -37,7 +37,11 @@ source "qemu" "almalinux" {
   vnc_bind_address = "0.0.0.0"
   vnc_port_min = "5900"
   vnc_port_max = "5900"
-  qemuargs = [["-m", "8192M"], ["-smp", "2"], ["-cpu", "host"]]
+  qemuargs = [
+    ["-m", "8192M"],
+    ["-smp", "2"],
+    ["-cpu", "host"]
+  ]
   headless = true
 }
 
