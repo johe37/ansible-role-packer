@@ -1,0 +1,9 @@
+---
+- name: Include Alma vars
+  ansible.builtin.include_vars: alma9.yml
+
+- name: Include prepare task
+  ansible.builtin.include_tasks:
+    file: prepare.yml
+...
+

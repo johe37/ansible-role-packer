@@ -19,7 +19,7 @@ source "qemu" "almalinux" {
   http_directory = "http"
   boot_wait = "10s"
   boot_command = [
-    "<tab> inst.text net.ifnames=0 inst.gpt inst.ks=http://{{ .HTTPIP }}:{{ .HTTPPort }}/alma-ks.cfg<enter><wait>",
+    "<tab> inst.text net.ifnames=0 inst.gpt inst.ks=http://{{ .HTTPIP }}:{{ .HTTPPort }}/alma9-ks.cfg<enter><wait>",
   ]
   shutdown_command = "/sbin/shutdown -hP now"
   accelerator = "kvm"

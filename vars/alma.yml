@@ -1,0 +1,13 @@
+---
+packer_working_dir: "{{ lookup('env', 'PWD') }}/packer/alma"
+packer_builder: "{{ lookup('file', 'builders/qemu-almalinux9.hcl') }}"
+packer_config_files:
+  - path: "{{ packer_working_dir }}/packer.pkr.hcl"       # Packer builder
+    content: "{{ packer_builder }}"
+  - path: "{{ packer_working_dir }}/http/meta-data"       # Needed in general
+    content: ""
+  - path: "{{ packer_working_dir }}/http/alma9-ks.cfg"     # Needed for Alma
+    content: "{{ lookup('file', 'alma9-ks.cfg') }}"
+  - path: "{{ packer_working_dir }}/files/provision-image-rhel.yml"
+    content: "{{ lookup('file', 'playbooks/provision-image-rhel.yml') }}"
+...

@@ -10,8 +10,8 @@ packer_config_files:
     content: "datasource_list: [ConfigDrive, NoCloud]"
   - path: "{{ packer_working_dir }}/http/user-data"       # Needed for Ubuntu
     content: "{{ lookup('file', 'user-data') }}"
-  - path: "{{ packer_working_dir }}/http/alma-ks.cfg"     # Needed for Alma
-    content: "{{ lookup('file', 'alma-ks.cfg') }}"
+  - path: "{{ packer_working_dir }}/http/alma9-ks.cfg"     # Needed for Alma
+    content: "{{ lookup('file', 'alma9-ks.cfg') }}"
   - path: "{{ packer_working_dir }}/http/preseed.cfg"     # Needed for Debian
     content: "{{ lookup('file', 'preseed.cfg') }}"
   - path: "{{ packer_working_dir }}/files/provision-image-rhel.yml"

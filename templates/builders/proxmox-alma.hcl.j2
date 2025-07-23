@@ -57,7 +57,7 @@ source "proxmox" "alma" {
 
     # PACKER Boot Commands
     boot_command = [
-        "<tab> inst.text net.ifnames=0 inst.gpt inst.ks=http://{{ '{{' }} .HTTPIP {{ '}}' }}:{{ '{{' }} .HTTPPort {{' }}' }}/alma-ks.cfg<enter><wait>"
+        "<tab> inst.text net.ifnames=0 inst.gpt inst.ks=http://{{ '{{' }} .HTTPIP {{ '}}' }}:{{ '{{' }} .HTTPPort {{' }}' }}/alma9-ks.cfg<enter><wait>"
     ]
     boot = "c"
     boot_wait = "10s"
