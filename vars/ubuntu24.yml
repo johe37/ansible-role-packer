@@ -1,0 +1,13 @@
+---
+packer_working_dir: "{{ lookup('env', 'PWD') }}/packer/ubuntu"
+packer_builder: "{{ lookup('file', 'builders/qemu-ubuntu24.hcl') }}"
+packer_config_files:
+  - path: "{{ packer_working_dir }}/packer.pkr.hcl"       # Packer builder
+    content: "{{ packer_builder }}"
+  - path: "{{ packer_working_dir }}/http/meta-data"       # Needed in general
+    content: ""
+  - path: "{{ packer_working_dir }}/http/user-data"       # Needed for Ubuntu
+    content: "{{ lookup('file', 'user-data') }}"
+  - path: "{{ packer_working_dir }}/files/provision-image-ubuntu.yml"
+    content: "{{ lookup('file', 'playbooks/provision-image-ubuntu.yml') }}"
+...

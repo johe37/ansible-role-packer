@@ -1,0 +1,9 @@
+---
+- name: Include Ubuntu vars
+  ansible.builtin.include_vars: ubuntu24.yml
+
+- name: Include task prepare
+  ansible.builtin.include_tasks:
+    file: prepare.yml
+...
+
