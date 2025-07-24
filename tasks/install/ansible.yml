@@ -5,9 +5,5 @@
   ansible.builtin.package:
     name: "{{ item }}"
   loop:
-    - python3-pip
-
-- name: Install ansible
-  ansible.builtin.pip:
-    name: ansible
+    - ansible
 ...

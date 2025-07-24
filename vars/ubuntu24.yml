@@ -1,5 +1,4 @@
 ---
-packer_working_dir: "{{ lookup('env', 'PWD') }}/packer/ubuntu"
 packer_builder: "{{ lookup('file', 'builders/qemu-ubuntu24.hcl') }}"
 packer_config_files:
   - path: "{{ packer_working_dir }}/packer.pkr.hcl"       # Packer builder
